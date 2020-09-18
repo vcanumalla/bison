@@ -1,0 +1,6 @@
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+[build]
+target = "x86_64-bison.json"
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"
