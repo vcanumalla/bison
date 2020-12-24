@@ -1,11 +1,12 @@
 use volatile::Volatile;
-
+use core::fmt;
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+
 pub enum Color {
     Black = 0,
     Blue = 1,
@@ -24,6 +25,7 @@ pub enum Color {
     Yellow = 14,
     White = 15,
 }
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
 struct ColorCode(u8);
@@ -70,6 +72,22 @@ impl Writer {
     }
     fn new_line(&mut self) {
         //EMPTY
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let cur = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(cur);
+            }
+        }
+        self.clear_row(BUFFER_HEIGHT - 1);
+    }
+    fn clear_row(&mut self, row: usize) {
+        let cur = ScreenChar {
+            ascii_character: b' ',
+            color_char: self.color_code,
+        };
+        for col in 0..BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(cur); // will b' ' work
+        }
     }
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
@@ -80,13 +98,24 @@ impl Writer {
         }
     }
 }
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
+    }
+}
 pub fn print() {
-    let mut bufferedWriter = Writer {
+    use core::fmt::Write;
+    let mut buffered_writer = Writer {
         column_position: 0,
         color_code: ColorCode::new(Color:: Yellow, Color:: Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     };
-    bufferedWriter.write_byte(b'H');
-    bufferedWriter.write_string("ello ");
-    bufferedWriter.write_string("");
+
+    writeln!(buffered_writer, "Hello Vishal").unwrap();
 }
+pub static WRITER: Writer = Writer {
+    column_position: 0,
+    color_code: ColorCode::new(Color::Yellow, Color::Black),
+    buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+};
